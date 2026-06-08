@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {Address} from "@openzeppelin/contracts/utils/Address.sol";
-import {IAnonZapRouter} from "./interfaces/IAnonZapRouter.sol";
-import {IAnonTokenManager} from "./interfaces/IAnonTokenManager.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
+import { IAnonZapRouter } from "./interfaces/IAnonZapRouter.sol";
+import { IAnonTokenManager } from "./interfaces/IAnonTokenManager.sol";
 
 /**
  * @title AnonZapRouter
@@ -60,12 +60,7 @@ contract AnonZapRouter is IAnonZapRouter, Ownable, Pausable {
         _executeSteps(steps);
         _validateAndReturn(order);
 
-        emit OrderExecuted(
-            order.user,
-            order.recipient,
-            order.inputs.length,
-            steps.length
-        );
+        emit OrderExecuted(order.user, order.recipient, order.inputs.length, steps.length);
     }
 
     // ─── Internal ─────────────────────────────────────────────────────────────
@@ -102,7 +97,7 @@ contract AnonZapRouter is IAnonZapRouter, Ownable, Pausable {
                 }
             }
 
-            (bool success, bytes memory result) = step.target.call{value: step.value}(callData);
+            (bool success, bytes memory result) = step.target.call{ value: step.value }(callData);
             if (!success) {
                 // Bubble up revert reason or emit our custom error
                 if (result.length > 0) {
@@ -136,7 +131,7 @@ contract AnonZapRouter is IAnonZapRouter, Ownable, Pausable {
 
             if (balance > 0) {
                 if (output.token == address(0)) {
-                    (bool sent, ) = recipient.call{value: balance}("");
+                    (bool sent, ) = recipient.call{ value: balance }("");
                     require(sent, "ETH transfer failed");
                 } else {
                     IERC20(output.token).safeTransfer(recipient, balance);

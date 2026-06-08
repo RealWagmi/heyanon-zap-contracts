@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IAnonTokenManager} from "./interfaces/IAnonTokenManager.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IAnonTokenManager } from "./interfaces/IAnonTokenManager.sol";
 
 /**
  * @title AnonTokenManager
@@ -30,11 +30,7 @@ contract AnonTokenManager is IAnonTokenManager, Ownable {
         router = newRouter;
     }
 
-    function pullToken(
-        address user,
-        address token,
-        uint256 amount
-    ) external override onlyRouter {
+    function pullToken(address user, address token, uint256 amount) external override onlyRouter {
         IERC20(token).safeTransferFrom(user, msg.sender, amount);
     }
 }

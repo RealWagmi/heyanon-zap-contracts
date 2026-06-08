@@ -2,7 +2,7 @@ import "dotenv/config";
 import { defineConfig, configVariable } from "hardhat/config";
 import hardhatToolboxViem from "@nomicfoundation/hardhat-toolbox-viem";
 
-export default defineConfig({
+const config: Parameters<typeof defineConfig>[0] = {
   plugins: [hardhatToolboxViem],
   solidity: {
     version: "0.8.28",
@@ -13,12 +13,16 @@ export default defineConfig({
       },
     },
   },
-  networks: {
-    mainnetFork: {
-      type: "edr-simulated",
-      forking: {
-        url: configVariable("MAINNET_RPC_URL"),
-      },
+  networks: {},
+};
+
+if (process.env.MAINNET_RPC_URL) {
+  config.networks!.mainnetFork = {
+    type: "edr-simulated",
+    forking: {
+      url: configVariable("MAINNET_RPC_URL"),
     },
-  },
-});
+  };
+}
+
+export default defineConfig(config);
