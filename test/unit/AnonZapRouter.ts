@@ -629,4 +629,66 @@ describe("AnonZapRouter", function () {
       assert.equal(getAddress(tmRouter), getAddress(router.address));
     });
   });
+
+  describe("security: tokenManager drain attempt blocked by target validation", () => {
+    it("should revert when attacker tries to call tokenManager via step", async () => {
+      const victim = recipient;
+      const victimAmount = parseUnits("500", 18);
+      await tokenA.write.mint([victim.account.address, victimAmount]);
+      const tokenManagerAddress = await router.read.tokenManager();
+      await tokenA.write.approve([tokenManagerAddress, victimAmount], {
+        account: victim.account,
+      });
+
+      const pullTokensData = encodeFunctionData({
+        abi: [
+          {
+            name: "pullTokens",
+            type: "function",
+            inputs: [
+              { name: "user", type: "address" },
+              {
+                name: "inputs",
+                type: "tuple[]",
+                components: [
+                  { name: "token", type: "address" },
+                  { name: "amount", type: "uint256" },
+                ],
+              },
+            ],
+            outputs: [],
+            stateMutability: "nonpayable",
+          },
+        ],
+        functionName: "pullTokens",
+        args: [
+          victim.account.address,
+          [{ token: tokenA.address, amount: victimAmount }],
+        ],
+      });
+
+      const order = {
+        inputs: [],
+        outputs: [{ token: tokenA.address, minOutputAmount: victimAmount }],
+        user: user.account.address,
+        recipient: user.account.address,
+      };
+
+      const steps = [
+        {
+          target: tokenManagerAddress,
+          value: 0n,
+          data: pullTokensData,
+          tokens: [],
+        },
+      ];
+
+      await assert.rejects(
+        router.write.executeOrder([order, steps], { account: user.account }),
+      );
+
+      const victimBalanceAfter = await tokenA.read.balanceOf([victim.account.address]);
+      assert.equal(victimBalanceAfter, victimAmount);
+    });
+  });
 });
