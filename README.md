@@ -12,3 +12,40 @@ Key features:
 - **Slippage protection** — enforces minimum output amounts on-chain
 - **Separated approvals** — users approve a dedicated TokenManager, so router upgrades don't require re-approvals
 - **Pausable** — owner can pause execution in case of emergency
+
+## Testing
+
+```bash
+# Install dependencies
+pnpm install
+
+# Compile contracts
+pnpm compile
+
+# Run unit tests
+pnpm test
+
+# Run fork tests (requires RPC URLs in .env)
+pnpm test:fork:mainnet
+pnpm test:fork:base
+```
+
+### Environment variables
+
+Copy `.env.example` to `.env` and fill in the RPC URLs for fork testing:
+
+```
+MAINNET_RPC_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY
+BASE_RPC_URL=https://base-mainnet.g.alchemy.com/v2/YOUR_KEY
+```
+
+### Test structure
+
+```
+test/
+├── unit/           # Local network tests (no RPC needed)
+│   └── AnonZapRouter.ts
+└── fork/
+    ├── mainnet/    # Ethereum mainnet fork tests
+    └── base/       # Base mainnet fork tests
+```
