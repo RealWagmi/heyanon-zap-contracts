@@ -5,3 +5,6 @@ dist/
 .env
 coverage/
 coverage.json
+
+# Third-party contracts for local analysis (not our code)
+reference/

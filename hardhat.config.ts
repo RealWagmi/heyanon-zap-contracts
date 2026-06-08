@@ -13,6 +13,9 @@ const config: Parameters<typeof defineConfig>[0] = {
       },
     },
   },
+  paths: {
+    tests: { nodejs: "test/unit" },
+  },
   networks: {},
 };
 
@@ -21,6 +24,15 @@ if (process.env.MAINNET_RPC_URL) {
     type: "edr-simulated",
     forking: {
       url: configVariable("MAINNET_RPC_URL"),
+    },
+  };
+}
+
+if (process.env.BASE_RPC_URL) {
+  config.networks!.baseFork = {
+    type: "edr-simulated",
+    forking: {
+      url: configVariable("BASE_RPC_URL"),
     },
   };
 }

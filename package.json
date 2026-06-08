@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "compile": "hardhat compile",
-    "test": "hardhat test test/AnonZapRouter.ts",
-    "test:fork": "hardhat test test/fork/ConvexZap.ts --network mainnetFork",
+    "test": "npm run test:unit",
+    "test:unit": "hardhat test",
+    "test:fork:mainnet": "hardhat test test/fork/mainnet/*.ts --network mainnetFork",
+    "test:fork:base": "hardhat test test/fork/base/*.ts --network baseFork",
     "clean": "hardhat clean",
     "lint": "solhint 'contracts/**/*.sol'",
     "lint:fix": "solhint 'contracts/**/*.sol' --fix",

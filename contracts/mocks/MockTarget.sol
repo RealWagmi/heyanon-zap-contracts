@@ -57,3 +57,35 @@ contract MockVault {
         shares[msg.sender] += amount;
     }
 }
+
+/**
+ * @notice Mock swap that only consumes part of the input, leaving "dust" on the caller.
+ */
+contract MockPartialSwap {
+    using SafeERC20 for IERC20;
+
+    function swap(
+        address tokenIn,
+        address tokenOut,
+        uint256 maxAmountIn,
+        uint256 amountOut,
+        address recipient
+    ) external {
+        uint256 consumed = maxAmountIn - (maxAmountIn / 100); // consumes 99%, leaves 1% dust
+        IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), consumed);
+        IERC20(tokenOut).transfer(recipient, amountOut);
+    }
+}
+
+/**
+ * @notice Mock vault that accepts native ETH deposits (simulates WETH.deposit or ETH staking).
+ */
+contract MockETHVault {
+    mapping(address => uint256) public deposits;
+
+    function deposit() external payable {
+        deposits[msg.sender] += msg.value;
+    }
+
+    receive() external payable {}
+}

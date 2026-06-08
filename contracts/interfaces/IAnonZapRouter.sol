@@ -35,6 +35,9 @@ interface IAnonZapRouter {
     error SlippageExceeded(address token, uint256 minAmount, uint256 actualAmount);
     error TargetNotAllowed(address target);
     error InsufficientInput(address token, uint256 required, uint256 available);
+    error InvalidCaller(address expected, address actual);
+    error EtherTransferFailed(address recipient);
+    error InvalidRecipient();
 
     event OrderExecuted(
         address indexed user,
