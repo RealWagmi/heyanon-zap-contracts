@@ -52,6 +52,10 @@ jobs:
       - name: Run coverage
         run: npm run coverage
 
+      - name: Setup LCOV
+        if: github.event_name == 'pull_request'
+        uses: hrishikesh-kadam/setup-lcov@v2
+
       - name: Report coverage
         if: github.event_name == 'pull_request'
         uses: zgosalvez/github-actions-report-lcov@v4
