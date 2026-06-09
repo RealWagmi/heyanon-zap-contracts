@@ -54,7 +54,7 @@ jobs:
 
       - name: Setup LCOV
         if: github.event_name == 'pull_request'
-        uses: hrishikesh-kadam/setup-lcov@v2
+        uses: hrishikesh-kadam/setup-lcov@v1
 
       - name: Report coverage
         if: github.event_name == 'pull_request'
