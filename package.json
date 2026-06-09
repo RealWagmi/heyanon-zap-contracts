@@ -9,6 +9,7 @@
     "test:unit": "hardhat test",
     "test:fork:mainnet": "hardhat test test/fork/mainnet/*.ts --network mainnetFork",
     "test:fork:base": "hardhat test test/fork/base/*.ts --network baseFork",
+    "coverage": "hardhat test --coverage",
     "clean": "hardhat clean",
     "lint": "solhint 'contracts/**/*.sol'",
     "lint:fix": "solhint 'contracts/**/*.sol' --fix",
