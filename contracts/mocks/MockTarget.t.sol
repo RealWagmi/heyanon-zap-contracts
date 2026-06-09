@@ -82,10 +82,68 @@ contract MockPartialSwap {
  */
 contract MockETHVault {
     mapping(address => uint256) public deposits;
+    uint256 public lastAmount;
 
     function deposit() external payable {
         deposits[msg.sender] += msg.value;
     }
 
+    function depositWithAmount(uint256 amount) external payable {
+        require(msg.value == amount, "value mismatch");
+        deposits[msg.sender] += msg.value;
+        lastAmount = amount;
+    }
+
     receive() external payable {}
+}
+
+/**
+ * @notice Contract that rejects ETH transfers (no receive/fallback).
+ * Used to test EtherTransferFailed reverts.
+ */
+contract MockNoReceive {
+    // intentionally no receive() or fallback()
+}
+
+/**
+ * @notice A caller contract that can execute zap orders but cannot receive ETH.
+ * This tests the _sweepDust revert path when order.user (msg.sender) rejects ETH.
+ */
+interface IAnonZapRouterMinimal {
+    struct Input {
+        address token;
+        uint256 amount;
+    }
+    struct Output {
+        address token;
+        uint256 minOutputAmount;
+    }
+    struct Order {
+        Input[] inputs;
+        Output[] outputs;
+        address user;
+        address recipient;
+    }
+    struct StepToken {
+        address token;
+        int256 index;
+    }
+    struct Step {
+        address target;
+        uint256 value;
+        bytes data;
+        StepToken[] tokens;
+    }
+    function executeOrder(Order calldata order, Step[] calldata steps) external payable;
+}
+
+contract MockCallerNoReceive {
+    function callZap(
+        address router,
+        IAnonZapRouterMinimal.Order calldata order,
+        IAnonZapRouterMinimal.Step[] calldata steps
+    ) external payable {
+        IAnonZapRouterMinimal(router).executeOrder{ value: msg.value }(order, steps);
+    }
+    // No receive() — ETH dust sweep back to this contract will fail
 }

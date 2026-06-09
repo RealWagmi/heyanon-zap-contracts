@@ -11,46 +11,54 @@ import { IAnonZapRouter } from "./interfaces/IAnonZapRouter.sol";
 import { IAnonTokenManager } from "./interfaces/IAnonTokenManager.sol";
 import { AnonTokenManager } from "./AnonTokenManager.sol";
 
-/**
- * @title AnonZapRouter
- * @notice Generic multi-step zap executor. Receives an order (what goes in/out)
- * and a route (sequence of arbitrary external calls). Each step can reference
- * the router's current token balance which gets patched into calldata at runtime.
- *
- * Key design (inspired by BeefyZapRouter):
- * - StepToken.index == -1: approve token to step target (balance injection via full balance)
- * - StepToken.index >= 0: patch the router's token balance into calldata at that byte offset
- * - After all steps, validate output minimums and return tokens to recipient
- */
+/// @title AnonZapRouter
+/// @author HeyAnon
+/// @notice Generic multi-step zap executor. Receives an order (what goes in/out)
+///         and a route (sequence of arbitrary external calls). Each step can reference
+///         the router's current token balance which gets patched into calldata at runtime.
+/// @dev Key design (inspired by BeefyZapRouter):
+///      - StepToken.index == -1: approve full balance to step target (no calldata patch)
+///      - StepToken.index >= 0: patch the router's token balance into calldata at that byte offset
+///      - StepToken with address(0): use contract's ETH balance as msg.value for the call
+///      - After all steps: validate output minimums, return tokens to recipient, sweep dust
 contract AnonZapRouter is IAnonZapRouter, Ownable, Pausable, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using Address for address;
 
+    /// @inheritdoc IAnonZapRouter
     address public immutable override tokenManager;
 
+    /// @notice Restricts execution to the order's declared user
+    /// @param user The address that must equal msg.sender
     modifier onlyOrderUser(address user) {
         if (msg.sender != user) revert InvalidCaller(user, msg.sender);
         _;
     }
 
+    /// @notice Deploys the router and creates a new immutable AnonTokenManager
+    /// @param owner_ Address that will own the router (can pause/unpause)
     constructor(address owner_) Ownable(owner_) {
         tokenManager = address(new AnonTokenManager());
     }
 
+    /// @notice Accepts native ETH (required for receiving ETH from steps like WETH.withdraw)
     receive() external payable {}
 
     // ─── Admin ────────────────────────────────────────────────────────────────
 
+    /// @notice Pause all zap executions (emergency stop)
     function pause() external onlyOwner {
         _pause();
     }
 
+    /// @notice Resume zap executions after a pause
     function unpause() external onlyOwner {
         _unpause();
     }
 
     // ─── Core ─────────────────────────────────────────────────────────────────
 
+    /// @inheritdoc IAnonZapRouter
     function executeOrder(
         Order calldata order,
         Step[] calldata steps
@@ -66,11 +74,15 @@ contract AnonZapRouter is IAnonZapRouter, Ownable, Pausable, ReentrancyGuard {
 
     // ─── Internal ─────────────────────────────────────────────────────────────
 
+    /// @notice Pull all input tokens from user via TokenManager and validate native ETH
+    /// @param order The order containing input specifications
     function _pullInputs(Order calldata order) internal {
         _validateNativeInput(order.inputs);
         IAnonTokenManager(tokenManager).pullTokens(order.user, order.inputs);
     }
 
+    /// @notice Verify that msg.value covers any native ETH input requirement
+    /// @param inputs Array of inputs to scan for native ETH (address(0))
     function _validateNativeInput(Input[] calldata inputs) internal view {
         uint256 inputsLength = inputs.length;
         for (uint256 i; i < inputsLength; ) {
@@ -86,6 +98,10 @@ contract AnonZapRouter is IAnonZapRouter, Ownable, Pausable, ReentrancyGuard {
         }
     }
 
+    /// @notice Execute the sequence of external calls that form the zap route.
+    ///         For each step: patch balances into calldata, make the call, then
+    ///         reset any approvals granted during the step (zero residual).
+    /// @param steps Array of steps to execute sequentially
     function _executeSteps(Step[] calldata steps) internal {
         uint256 stepsLength = steps.length;
         for (uint256 i; i < stepsLength; ) {
@@ -143,6 +159,9 @@ contract AnonZapRouter is IAnonZapRouter, Ownable, Pausable, ReentrancyGuard {
         }
     }
 
+    /// @notice Validate that all output minimums are met and transfer tokens to recipient.
+    ///         Reverts with SlippageExceeded if any output balance is below its minimum.
+    /// @param order The order containing output specifications and recipient address
     function _validateAndReturn(Order calldata order) internal {
         address recipient = order.recipient;
         uint256 outputsLength = order.outputs.length;
@@ -171,6 +190,9 @@ contract AnonZapRouter is IAnonZapRouter, Ownable, Pausable, ReentrancyGuard {
         }
     }
 
+    /// @notice Return any remaining input token dust to the user.
+    ///         Handles both ERC20 and native ETH leftover balances.
+    /// @param order The order containing inputs and user address
     function _sweepDust(Order calldata order) internal {
         address user = order.user;
         uint256 inputsLength = order.inputs.length;
@@ -194,6 +216,9 @@ contract AnonZapRouter is IAnonZapRouter, Ownable, Pausable, ReentrancyGuard {
         }
     }
 
+    /// @notice Get the router's current balance of a token (ERC20 or native ETH)
+    /// @param token Token address, or address(0) for native ETH
+    /// @return Current balance held by this contract
     function _getBalance(address token) internal view returns (uint256) {
         if (token == address(0)) {
             return address(this).balance;
@@ -201,6 +226,11 @@ contract AnonZapRouter is IAnonZapRouter, Ownable, Pausable, ReentrancyGuard {
         return IERC20(token).balanceOf(address(this));
     }
 
+    /// @notice Patch a uint256 value into a bytes array at the specified offset.
+    ///         Used for dynamic balance injection into step calldata.
+    /// @param data The calldata bytes to modify
+    /// @param offset Byte offset where the uint256 value should be written
+    /// @param amount The value to write
     function _patchAmount(bytes memory data, uint256 offset, uint256 amount) internal pure {
         if (offset + 32 > data.length) revert CallFailed(address(0), 0, data);
         assembly {
