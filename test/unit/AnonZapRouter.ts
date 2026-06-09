@@ -613,6 +613,219 @@ describe("AnonZapRouter", function () {
     });
   });
 
+  describe("executeOrder - native ETH flows", () => {
+    it("should revert with InsufficientInput when msg.value < native input amount", async () => {
+      const order = {
+        inputs: [{ token: zeroAddress, amount: parseUnits("2", 18) }],
+        outputs: [],
+        user: user.account.address,
+        recipient: recipient.account.address,
+      };
+
+      // Send only 1 ETH but order requires 2 ETH
+      await assert.rejects(
+        router.write.executeOrder([order, []], {
+          account: user.account,
+          value: parseUnits("1", 18),
+        }),
+      );
+    });
+
+    it("should return native ETH as output to recipient", async () => {
+      const ethAmount = parseUnits("1", 18);
+
+      // Native ETH input → stays on router → native ETH output to recipient
+      const order = {
+        inputs: [{ token: zeroAddress, amount: ethAmount }],
+        outputs: [{ token: zeroAddress, minOutputAmount: ethAmount }],
+        user: user.account.address,
+        recipient: recipient.account.address,
+      };
+
+      const publicClient = await viem.getPublicClient();
+      const recipientBefore = await publicClient.getBalance({ address: recipient.account.address });
+
+      await router.write.executeOrder([order, []], {
+        account: user.account,
+        value: ethAmount,
+      });
+
+      const recipientAfter = await publicClient.getBalance({ address: recipient.account.address });
+      assert.equal(recipientAfter - recipientBefore, ethAmount);
+
+      const routerBalance = await publicClient.getBalance({ address: router.address });
+      assert.equal(routerBalance, 0n);
+    });
+
+    it("should patch ETH balance into calldata when stepToken is address(0) with index >= 0", async () => {
+      const ethAmount = parseUnits("1", 18);
+      const mockVault = await viem.deployContract("MockETHVault");
+
+      // depositWithAmount(uint256) — calldata = selector(4) + uint256(32)
+      // index: 4 patches the amount at byte offset 4 (the uint256 param)
+      const depositData = encodeFunctionData({
+        abi: [
+          {
+            name: "depositWithAmount",
+            type: "function",
+            inputs: [{ name: "amount", type: "uint256" }],
+            outputs: [],
+            stateMutability: "payable",
+          },
+        ],
+        functionName: "depositWithAmount",
+        args: [0n], // placeholder, will be patched with ETH balance
+      });
+
+      const order = {
+        inputs: [{ token: zeroAddress, amount: ethAmount }],
+        outputs: [],
+        user: user.account.address,
+        recipient: recipient.account.address,
+      };
+
+      const steps = [
+        {
+          target: mockVault.address,
+          value: 0n,
+          data: depositData,
+          tokens: [{ token: zeroAddress, index: 4 }], // patches uint256 + uses dynamic ETH
+        },
+      ];
+
+      await router.write.executeOrder([order, steps], {
+        account: user.account,
+        value: ethAmount,
+      });
+
+      const publicClient = await viem.getPublicClient();
+      const vaultBalance = await publicClient.getBalance({ address: mockVault.address });
+      assert.equal(vaultBalance, ethAmount);
+
+      const lastAmount = await mockVault.read.lastAmount();
+      assert.equal(lastAmount, ethAmount);
+    });
+
+    it("should revert EtherTransferFailed when recipient cannot receive ETH (output)", async () => {
+      const ethAmount = parseUnits("1", 18);
+      const noReceive = await viem.deployContract("MockNoReceive");
+
+      const order = {
+        inputs: [{ token: zeroAddress, amount: ethAmount }],
+        outputs: [{ token: zeroAddress, minOutputAmount: ethAmount }],
+        user: user.account.address,
+        recipient: noReceive.address, // cannot receive ETH
+      };
+
+      await assert.rejects(
+        router.write.executeOrder([order, []], {
+          account: user.account,
+          value: ethAmount,
+        }),
+      );
+    });
+  });
+
+  describe("executeOrder - edge cases", () => {
+    it("should revert with CallFailed when step fails without return data", async () => {
+      const amountIn = parseUnits("100", 18);
+
+      // Deploy a contract that reverts without data (empty revert)
+      // MockRevertTarget reverts with data, so we need to call a non-existent function
+      // on an EOA or a contract that doesn't implement it
+      const order = {
+        inputs: [{ token: tokenA.address, amount: amountIn }],
+        outputs: [{ token: tokenA.address, minOutputAmount: 0n }],
+        user: user.account.address,
+        recipient: recipient.account.address,
+      };
+
+      // Call a function selector that doesn't exist on mockSwap
+      const steps = [
+        {
+          target: mockSwap.address,
+          value: 0n,
+          data: "0xdeadbeef" as `0x${string}`, // non-existent selector
+          tokens: [],
+        },
+      ];
+
+      await assert.rejects(
+        router.write.executeOrder([order, steps], { account: user.account }),
+      );
+    });
+
+    it("should revert EtherTransferFailed when caller cannot receive ETH dust (_sweepDust)", async () => {
+      const ethAmount = parseUnits("1", 18);
+      const mockVault = await viem.deployContract("MockETHVault");
+      const noReceive = await viem.deployContract("MockNoReceive");
+
+      // Impersonate the contract without receive() so we can call executeOrder directly (top-level)
+      await networkHelpers.impersonateAccount(noReceive.address);
+      await networkHelpers.setBalance(noReceive.address, parseUnits("10", 18));
+
+      const depositData = encodeFunctionData({
+        abi: [
+          { name: "deposit", type: "function", inputs: [], outputs: [], stateMutability: "payable" },
+        ],
+        functionName: "deposit",
+      });
+
+      const order = {
+        inputs: [{ token: zeroAddress, amount: ethAmount }],
+        outputs: [],
+        user: noReceive.address,
+        recipient: noReceive.address,
+      };
+
+      // Step sends only half the ETH to vault, leaving 0.5 ETH dust on router
+      const steps = [
+        {
+          target: mockVault.address,
+          value: ethAmount / 2n,
+          data: depositData,
+          tokens: [],
+        },
+      ];
+
+      await assert.rejects(
+        router.write.executeOrder([order, steps], {
+          account: noReceive.address,
+          value: ethAmount,
+        }),
+      );
+
+      await networkHelpers.stopImpersonatingAccount(noReceive.address);
+    });
+
+    it("should revert when patchAmount offset exceeds calldata length", async () => {
+      const amountIn = parseUnits("100", 18);
+
+      const shortData = "0x12345678" as `0x${string}`; // only 4 bytes
+
+      const order = {
+        inputs: [{ token: tokenA.address, amount: amountIn }],
+        outputs: [{ token: tokenA.address, minOutputAmount: 0n }],
+        user: user.account.address,
+        recipient: recipient.account.address,
+      };
+
+      // index: 100 — offset 100 + 32 > 4 bytes of data → should revert
+      const steps = [
+        {
+          target: mockSwap.address,
+          value: 0n,
+          data: shortData,
+          tokens: [{ token: tokenA.address, index: 100 }],
+        },
+      ];
+
+      await assert.rejects(
+        router.write.executeOrder([order, steps], { account: user.account }),
+      );
+    });
+  });
+
   describe("AnonTokenManager", () => {
     it("should only allow router to pull tokens", async () => {
       const inputs = [{ token: tokenA.address, amount: parseUnits("10", 18) }];
