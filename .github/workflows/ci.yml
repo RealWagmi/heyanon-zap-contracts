@@ -37,16 +37,16 @@ jobs:
       - name: Run tests with gas report
         run: npx hardhat test --gas-stats-json gas-report.json 2>&1 | tee test-output.txt
 
-      - name: Generate CI report
-        run: node scripts/ci-report.mjs
+      - name: Generate build report
+        run: node scripts/build-report.mjs
 
       - name: Upload report artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ci-report
+          name: build-report
           path: |
-            ci-report.md
+            build-report.md
             gas-report.json
             test-output.txt
             compile-output.txt
@@ -55,8 +55,8 @@ jobs:
         if: github.event_name == 'pull_request'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
-          header: ci-report
-          path: ci-report.md
+          header: build-report
+          path: build-report.md
 
   coverage:
     runs-on: ubuntu-latest
@@ -75,16 +75,12 @@ jobs:
       - name: Run coverage
         run: npm run coverage
 
-      - name: Setup LCOV
-        if: github.event_name == 'pull_request'
-        uses: hrishikesh-kadam/setup-lcov@v1
+      - name: Generate coverage report
+        run: node scripts/coverage-report.mjs
 
-      - name: Report coverage
+      - name: Post PR comment
         if: github.event_name == 'pull_request'
-        uses: zgosalvez/github-actions-report-lcov@v4
+        uses: marocchino/sticky-pull-request-comment@v2
         with:
-          coverage-files: coverage/lcov.info
-          minimum-coverage: 100
-          artifact-name: coverage-report
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          update-comment: true
+          header: coverage-report
+          path: coverage-report.md

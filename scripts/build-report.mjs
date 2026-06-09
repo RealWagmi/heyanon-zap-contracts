@@ -6,7 +6,7 @@ const EIP170_LIMIT = 24_576;
 const testOutputFile = process.env.TEST_OUTPUT_FILE || "test-output.txt";
 const gasReportFile = process.env.GAS_REPORT_FILE || "gas-report.json";
 const compileOutputFile = process.env.COMPILE_OUTPUT_FILE || "compile-output.txt";
-const reportOutputFile = process.env.REPORT_OUTPUT_FILE || "ci-report.md";
+const reportOutputFile = process.env.REPORT_OUTPUT_FILE || "build-report.md";
 
 function parseTestOutput(raw) {
   let passed = 0, failed = 0, skipped = 0, duration = "";
@@ -63,7 +63,7 @@ function fmt(n) { return n.toLocaleString("en-US"); }
 
 function generateReport(test, contracts, warnings) {
   const lines = [];
-  lines.push("## 📊 CI Report\n");
+  lines.push("## 📊 CI Report (Build)\n");
 
   // Test Results
   const status = test.failed > 0 ? "❌ FAILED" : "✅ PASSED";
