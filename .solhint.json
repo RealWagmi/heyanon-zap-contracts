@@ -1,0 +1,17 @@
+{
+  "extends": "solhint:recommended",
+  "rules": {
+    "func-visibility": ["warn", { "ignoreConstructors": true }],
+    "compiler-version": ["error", "^0.8.28"],
+    "no-empty-blocks": "off",
+    "reason-string": "off",
+    "use-natspec": "off",
+    "func-name-mixedcase": "off",
+    "var-name-mixedcase": "off",
+    "no-inline-assembly": "off",
+    "gas-custom-errors": "warn",
+    "gas-increment-by-one": "warn",
+    "gas-strict-inequalities": "off",
+    "gas-indexed-events": "off"
+  }
+}

@@ -5,9 +5,18 @@
   "type": "module",
   "scripts": {
     "compile": "hardhat compile",
-    "test": "hardhat test",
-    "test:fork": "hardhat test --network mainnetFork",
-    "clean": "hardhat clean"
+    "test": "npm run test:unit",
+    "test:unit": "hardhat test",
+    "test:fork:mainnet": "hardhat test test/fork/mainnet/*.ts --network mainnetFork",
+    "test:fork:base": "hardhat test test/fork/base/*.ts --network baseFork",
+    "coverage": "hardhat test --coverage",
+    "clean": "hardhat clean",
+    "lint": "solhint 'contracts/**/*.sol'",
+    "lint:fix": "solhint 'contracts/**/*.sol' --fix",
+    "format": "prettier --write 'contracts/**/*.sol'",
+    "format:check": "prettier --check 'contracts/**/*.sol'",
+    "fork:mainnet": "node scripts/start-fork.mjs",
+    "deploy": "node scripts/deploy.mjs"
   },
   "keywords": [
     "zap",
@@ -21,6 +30,9 @@
     "@nomicfoundation/hardhat-toolbox-viem": "^5.0.7",
     "@openzeppelin/contracts": "^5.6.1",
     "dotenv": "^17.4.2",
-    "hardhat": "^3.8.0"
+    "hardhat": "^3.8.0",
+    "prettier": "^3.8.3",
+    "prettier-plugin-solidity": "^2.3.1",
+    "solhint": "^6.2.1"
   }
 }

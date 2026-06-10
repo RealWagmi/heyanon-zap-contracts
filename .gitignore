@@ -5,3 +5,13 @@ dist/
 .env
 coverage/
 coverage.json
+
+# CI report artifacts (generated in CI, not committed)
+build-report.md
+coverage-report.md
+gas-report.json
+test-output.txt
+compile-output.txt
+
+# Third-party contracts for local analysis (not our code)
+reference/
