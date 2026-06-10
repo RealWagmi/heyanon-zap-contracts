@@ -32,11 +32,13 @@ const config: Parameters<typeof defineConfig>[0] = {
       },
     }),
   },
-  verify: {
-    etherscan: {
-      apiKey: process.env.ETHERSCAN_API_KEY!,
+  ...(process.env.ETHERSCAN_API_KEY && {
+    verify: {
+      etherscan: {
+        apiKey: process.env.ETHERSCAN_API_KEY,
+      },
     },
-  },
+  }),
 };
 
 if (process.env.MAINNET_RPC_URL) {
