@@ -15,7 +15,8 @@
     "lint:fix": "solhint 'contracts/**/*.sol' --fix",
     "format": "prettier --write 'contracts/**/*.sol'",
     "format:check": "prettier --check 'contracts/**/*.sol'",
-    "fork:mainnet": "node scripts/start-fork.mjs"
+    "fork:mainnet": "node scripts/start-fork.mjs",
+    "deploy": "node scripts/deploy.mjs"
   },
   "keywords": [
     "zap",
